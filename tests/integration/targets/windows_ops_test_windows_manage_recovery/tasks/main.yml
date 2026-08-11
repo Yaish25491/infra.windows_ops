@@ -1,0 +1,31 @@
+---
+- name: Test recovery environment management
+  block:
+    - name: Check current recovery status
+      ansible.windows.win_command: ReAgentc.exe /info
+      changed_when: false
+      register: windows_manage_recovery_test_initial
+
+    - name: Configure recovery environment
+      ansible.builtin.include_role:
+        name: infra.windows_ops.windows_manage_recovery
+      vars:
+        windows_manage_recovery_enable: "{{ windows_manage_recovery_test_enable }}"
+
+    - name: Verify recovery status
+      ansible.windows.win_command: ReAgentc.exe /info
+      changed_when: false
+      register: windows_manage_recovery_test_verify
+
+    - name: Assert recovery is in expected state
+      ansible.builtin.assert:
+        that:
+          - "'Disabled' in windows_manage_recovery_test_verify.stdout"
+        fail_msg: "Recovery environment is not in expected disabled state"
+      when: not windows_manage_recovery_test_enable | bool
+
+    - name: Run role again for idempotency
+      ansible.builtin.include_role:
+        name: infra.windows_ops.windows_manage_recovery
+      vars:
+        windows_manage_recovery_enable: "{{ windows_manage_recovery_test_enable }}"
