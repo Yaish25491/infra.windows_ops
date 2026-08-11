@@ -1,0 +1,44 @@
+---
+- name: Test time configuration
+  block:
+    - name: Configure time settings
+      ansible.builtin.include_role:
+        name: infra.windows_ops.windows_manage_time
+      vars:
+        windows_manage_time_ntp_servers: "{{ windows_manage_time_test_ntp_servers }}"
+        windows_manage_time_timezone: "{{ windows_manage_time_test_timezone }}"
+        windows_manage_time_reboot: false
+
+    - name: Verify timezone
+      ansible.windows.win_powershell:
+        script: |
+          $Ansible.Changed = $false
+          $Ansible.Result = (Get-TimeZone).Id
+      register: windows_manage_time_verify_tz
+
+    - name: Assert timezone is correct
+      ansible.builtin.assert:
+        that:
+          - windows_manage_time_verify_tz.result == windows_manage_time_test_timezone
+        fail_msg: "Timezone was not configured correctly"
+
+    - name: Verify NTP servers
+      ansible.windows.win_powershell:
+        script: |
+          $Ansible.Changed = $false
+          $Ansible.Result = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Parameters' -Name NtpServer).NtpServer
+      register: windows_manage_time_verify_ntp
+
+    - name: Assert NTP servers configured
+      ansible.builtin.assert:
+        that:
+          - windows_manage_time_test_ntp_servers[0] in windows_manage_time_verify_ntp.result
+        fail_msg: "NTP servers were not configured correctly"
+
+    - name: Run role again for idempotency
+      ansible.builtin.include_role:
+        name: infra.windows_ops.windows_manage_time
+      vars:
+        windows_manage_time_ntp_servers: "{{ windows_manage_time_test_ntp_servers }}"
+        windows_manage_time_timezone: "{{ windows_manage_time_test_timezone }}"
+        windows_manage_time_reboot: false
