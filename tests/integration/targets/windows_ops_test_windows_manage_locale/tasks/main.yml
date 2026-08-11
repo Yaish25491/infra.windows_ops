@@ -1,0 +1,28 @@
+---
+- name: Test locale configuration
+  block:
+    - name: Configure locale settings
+      ansible.builtin.include_role:
+        name: infra.windows_ops.windows_manage_locale
+      vars:
+        windows_manage_locale_system: "{{ windows_manage_locale_test_system }}"
+        windows_manage_locale_ui: "{{ windows_manage_locale_test_ui }}"
+        windows_manage_locale_user: "{{ windows_manage_locale_test_user }}"
+        windows_manage_locale_reboot: false
+
+    - name: Verify locale settings
+      ansible.windows.win_powershell:
+        script: |
+          $Ansible.Changed = $false
+          $Ansible.Result = @{
+            system_locale = (Get-WinSystemLocale).Name
+            user_locale = (Get-Culture).Name
+          }
+      register: windows_manage_locale_verify
+
+    - name: Assert locale values
+      ansible.builtin.assert:
+        that:
+          - windows_manage_locale_verify.result.system_locale == windows_manage_locale_test_system
+          - windows_manage_locale_verify.result.user_locale == windows_manage_locale_test_user
+        fail_msg: "Locale settings were not configured correctly"
